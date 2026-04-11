@@ -1,0 +1,792 @@
+openapi: 3.0.0
+info:
+  title: Expense Tracker API
+  description: >-
+    Team-based expense management API with multi-step approval workflows,
+    receipt uploads, commenting, and role-scoped reporting. Built with Laravel
+    13 + Sanctum.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8090
+tags:
+  - name: Auth
+  - name: Categories
+  - name: Expenses
+  - name: Workflow
+  - name: Receipts
+  - name: Comments
+  - name: Reports
+  - name: Admin
+paths:
+  /api/register:
+    post:
+      tags:
+        - Auth
+      summary: Register
+      description: >-
+        Register a new user. `team_id` is required — users must belong to a
+        team.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                name: Jane Doe
+                email: jane@example.com
+                password: password
+                password_confirmation: password
+                team_id: 1
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: application/json
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/login:
+    post:
+      tags:
+        - Auth
+      summary: Login
+      description: >-
+        Login and receive a Bearer token. Returns 401 if credentials are wrong
+        or the account is inactive.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                email: jane@example.com
+                password: password
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: application/json
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout
+      description: Revoke all tokens for the authenticated user.
+      requestBody:
+        content: {}
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/categories:
+    get:
+      tags:
+        - Categories
+      summary: List Categories
+      description: List all categories. Non-admins see only active categories.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+    post:
+      tags:
+        - Categories
+      summary: Create Category
+      description: Create a new category. Admin only — returns 403 for other roles.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                name: Equipment
+                description: Hardware, software, peripherals
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/expenses:
+    get:
+      tags:
+        - Expenses
+      summary: List Expenses
+      description: >-
+        List expenses. Members see their own; managers see their team's; admins
+        see all.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: draft | pending | approved | rejected
+          example: pending
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+          example: '1'
+        - name: date_from
+          in: query
+          schema:
+            type: string
+          example: '2026-01-01'
+        - name: date_to
+          in: query
+          schema:
+            type: string
+          example: '2026-12-31'
+        - name: amount_min
+          in: query
+          schema:
+            type: integer
+          example: '50'
+        - name: amount_max
+          in: query
+          schema:
+            type: integer
+          example: '1000'
+        - name: sort
+          in: query
+          schema:
+            type: string
+          description: 'Prefix - for descending. Options: amount, date, title, created_at'
+          example: '-amount'
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+          description: Max 50
+          example: '15'
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+    post:
+      tags:
+        - Expenses
+      summary: Create Expense
+      description: >-
+        Create a draft expense. `amount` must be greater than 0. `date` must be
+        today or earlier. The category must be active.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                title: Hotel in London
+                description: 3 nights for client meeting
+                amount: 450
+                category_id: 1
+                date: '2026-03-15'
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/expenses/1:
+    get:
+      tags:
+        - Expenses
+      summary: Show Expense
+      description: >-
+        Get a single expense with receipts loaded. Returns 403 if not
+        authorized.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+    put:
+      tags:
+        - Expenses
+      summary: Update Expense
+      description: Partial update. Only allowed on Draft or Rejected expenses. Owner only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                title: Hotel in London (updated)
+                amount: 480
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+    delete:
+      tags:
+        - Expenses
+      summary: Delete Expense
+      description: Delete a draft expense. Soft-deleted — record is preserved. Owner only.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/expenses/1/submit:
+    post:
+      tags:
+        - Workflow
+      summary: Submit Expense
+      description: >-
+        Submit a Draft or Rejected expense for review. Moves status to Pending.
+        Owner only.
+      requestBody:
+        content: {}
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/expenses/1/approve:
+    post:
+      tags:
+        - Workflow
+      summary: Approve Expense
+      description: Approve a Pending expense. Admin or Manager (same team as expense) only.
+      requestBody:
+        content: {}
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/expenses/1/reject:
+    post:
+      tags:
+        - Workflow
+      summary: Reject Expense
+      description: >-
+        Reject a Pending expense with a reason. Admin or Manager (same team)
+        only.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                rejection_reason: Missing receipt for hotel stay
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/expenses/1/receipts:
+    post:
+      tags:
+        - Receipts
+      summary: Upload Receipt
+      description: >-
+        Upload a receipt file for an expense. Accepted formats: jpg, jpeg, png,
+        pdf. Max 10MB. Owner only.
+      requestBody:
+        content: {}
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+    get:
+      tags:
+        - Receipts
+      summary: List Receipts
+      description: List all receipts for an expense.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/receipts/1/download:
+    get:
+      tags:
+        - Receipts
+      summary: Download Receipt
+      description: Stream-download a receipt file. Response is the file binary.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/receipts/1:
+    delete:
+      tags:
+        - Receipts
+      summary: Delete Receipt
+      description: >-
+        Delete a receipt. Removes the file from storage and the database record.
+        Only allowed if the expense is in Draft status. Owner only.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/expenses/1/comments:
+    post:
+      tags:
+        - Comments
+      summary: Add Comment
+      description: >-
+        Add a comment to an expense. Max 2000 characters. Auth users who can
+        view the expense can comment.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                body: Please attach the original receipt PDF.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+    get:
+      tags:
+        - Comments
+      summary: List Comments
+      description: List all comments for an expense, newest first.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/comments/1:
+    delete:
+      tags:
+        - Comments
+      summary: Delete Comment
+      description: Delete a comment. The user who created the comment can delete it.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/reports/team-summary:
+    get:
+      tags:
+        - Reports
+      summary: Team Summary
+      description: >-
+        Aggregate totals for approved expenses. Admin or Manager only. Managers
+        see their team only.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+        - name: date_from
+          in: query
+          schema:
+            type: string
+          example: '2026-01-01'
+        - name: date_to
+          in: query
+          schema:
+            type: string
+          example: '2026-12-31'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/reports/by-category:
+    get:
+      tags:
+        - Reports
+      summary: By Category
+      description: >-
+        Approved expense totals grouped by category, sorted by amount
+        descending. Admin or Manager only.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+        - name: date_from
+          in: query
+          schema:
+            type: string
+          example: '2026-01-01'
+        - name: date_to
+          in: query
+          schema:
+            type: string
+          example: '2026-12-31'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/reports/by-member:
+    get:
+      tags:
+        - Reports
+      summary: By Member
+      description: >-
+        Approved expense totals grouped by team member, sorted by amount
+        descending. Admin or Manager only.
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+        - name: date_from
+          in: query
+          schema:
+            type: string
+          example: '2026-01-01'
+        - name: date_to
+          in: query
+          schema:
+            type: string
+          example: '2026-12-31'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/admin/users/2/toggle-active:
+    patch:
+      tags:
+        - Admin
+      summary: Toggle User Active
+      description: >-
+        Activate or deactivate a user account. Admin only. Deactivated users
+        cannot log in.
+      requestBody:
+        content: {}
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/admin/teams/1/toggle-active:
+    patch:
+      tags:
+        - Admin
+      summary: Toggle Team Active
+      description: Activate or deactivate a team. Admin only.
+      requestBody:
+        content: {}
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/admin/categories/1/toggle-active:
+    patch:
+      tags:
+        - Admin
+      summary: Toggle Category Active
+      description: >-
+        Activate or deactivate a category. Admin only. Inactive categories
+        cannot be used in new expenses.
+      requestBody:
+        content: {}
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: Bearer {{token}}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}

@@ -1,0 +1,668 @@
+{
+  "info": {
+    "name": "Expense Tracker API",
+    "description": "Team-based expense management API with multi-step approval workflows, receipt uploads, commenting, and role-scoped reporting. Built with Laravel 13 + Sanctum.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8090",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Paste your Bearer token here after login"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"password\",\n  \"password_confirmation\": \"password\",\n  \"team_id\": 1\n}"
+            },
+            "description": "Register a new user. `team_id` is required — users must belong to a team."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"Jane Doe\",\n    \"email\": \"jane@example.com\",\n    \"role\": \"member\",\n    \"team_id\": 1,\n    \"is_active\": true\n  },\n  \"token\": \"1|abc123...\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jane@example.com\",\n  \"password\": \"password\"\n}"
+            },
+            "description": "Login and receive a Bearer token. Returns 401 if credentials are wrong or the account is inactive."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"Jane Doe\",\n    \"email\": \"jane@example.com\",\n    \"role\": \"member\",\n    \"team_id\": 1,\n    \"is_active\": true\n  },\n  \"token\": \"2|xyz789...\"\n}"
+            },
+            {
+              "name": "401 Invalid credentials",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"message\": \"Invalid credentials.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/logout",
+            "description": "Revoke all tokens for the authenticated user."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Logged out successfully.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/categories",
+            "description": "List all categories. Non-admins see only active categories."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    { \"id\": 1, \"name\": \"Travel\", \"description\": \"Flights, hotels, transport\", \"is_active\": true },\n    { \"id\": 2, \"name\": \"Meals\", \"description\": \"Business meals\", \"is_active\": true }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/categories",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Equipment\",\n  \"description\": \"Hardware, software, peripherals\"\n}"
+            },
+            "description": "Create a new category. Admin only — returns 403 for other roles."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 3,\n    \"name\": \"Equipment\",\n    \"description\": \"Hardware, software, peripherals\",\n    \"is_active\": true\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "List Expenses",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/expenses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expenses"],
+              "query": [
+                { "key": "status", "value": "pending", "disabled": true, "description": "draft | pending | approved | rejected" },
+                { "key": "category_id", "value": "1", "disabled": true },
+                { "key": "date_from", "value": "2026-01-01", "disabled": true },
+                { "key": "date_to", "value": "2026-12-31", "disabled": true },
+                { "key": "amount_min", "value": "50", "disabled": true },
+                { "key": "amount_max", "value": "1000", "disabled": true },
+                { "key": "sort", "value": "-amount", "disabled": true, "description": "Prefix - for descending. Options: amount, date, title, created_at" },
+                { "key": "per_page", "value": "15", "disabled": true, "description": "Max 50" },
+                { "key": "cursor", "value": "", "disabled": true }
+              ]
+            },
+            "description": "List expenses. Members see their own; managers see their team's; admins see all."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 1,\n      \"title\": \"Hotel in London\",\n      \"amount\": \"450.00\",\n      \"date\": \"2026-03-15\",\n      \"status\": \"pending\",\n      \"category\": { \"id\": 1, \"name\": \"Travel\" },\n      \"user\": { \"id\": 2, \"name\": \"Jane Doe\" },\n      \"team\": { \"id\": 1, \"name\": \"Engineering\" }\n    }\n  ],\n  \"meta\": {\n    \"next_cursor\": \"eyJpZCI6MX0=\",\n    \"prev_cursor\": null,\n    \"per_page\": 15\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Hotel in London\",\n  \"description\": \"3 nights for client meeting\",\n  \"amount\": 450.00,\n  \"category_id\": 1,\n  \"date\": \"2026-03-15\"\n}"
+            },
+            "description": "Create a draft expense. `amount` must be greater than 0. `date` must be today or earlier. The category must be active."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"Hotel in London\",\n    \"amount\": \"450.00\",\n    \"date\": \"2026-03-15\",\n    \"status\": \"draft\",\n    \"category\": { \"id\": 1, \"name\": \"Travel\" },\n    \"user\": { \"id\": 2, \"name\": \"Jane Doe\" },\n    \"receipts\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show Expense",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1",
+            "description": "Get a single expense with receipts loaded. Returns 403 if not authorized."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"Hotel in London\",\n    \"description\": \"3 nights for client meeting\",\n    \"amount\": \"450.00\",\n    \"date\": \"2026-03-15\",\n    \"status\": \"approved\",\n    \"rejection_reason\": null,\n    \"reviewer\": { \"id\": 3, \"name\": \"Admin User\" },\n    \"reviewed_at\": \"2026-03-16T10:00:00Z\",\n    \"category\": { \"id\": 1, \"name\": \"Travel\" },\n    \"user\": { \"id\": 2, \"name\": \"Jane Doe\" },\n    \"team\": { \"id\": 1, \"name\": \"Engineering\" },\n    \"receipts\": [{ \"id\": 1, \"original_name\": \"hotel_receipt.pdf\" }]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Expense",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Hotel in London (updated)\",\n  \"amount\": 480.00\n}"
+            },
+            "description": "Partial update. Only allowed on Draft or Rejected expenses. Owner only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"Hotel in London (updated)\",\n    \"amount\": \"480.00\",\n    \"status\": \"draft\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Expense",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1",
+            "description": "Delete a draft expense. Soft-deleted — record is preserved. Owner only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Expense deleted.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Workflow",
+      "item": [
+        {
+          "name": "Submit Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1/submit",
+            "description": "Submit a Draft or Rejected expense for review. Moves status to Pending. Owner only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"status\": \"pending\",\n    \"rejection_reason\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Approve Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1/approve",
+            "description": "Approve a Pending expense. Admin or Manager (same team as expense) only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"status\": \"approved\",\n    \"reviewer\": { \"id\": 3, \"name\": \"Admin User\" },\n    \"reviewed_at\": \"2026-04-11T09:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reject Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1/reject",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rejection_reason\": \"Missing receipt for hotel stay\"\n}"
+            },
+            "description": "Reject a Pending expense with a reason. Admin or Manager (same team) only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"status\": \"rejected\",\n    \"rejection_reason\": \"Missing receipt for hotel stay\",\n    \"reviewer\": { \"id\": 3, \"name\": \"Admin User\" },\n    \"reviewed_at\": \"2026-04-11T09:05:00Z\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Receipts",
+      "item": [
+        {
+          "name": "Upload Receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1/receipts",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "description": "Accepted: jpg, jpeg, png, pdf. Max: 10MB"
+                }
+              ]
+            },
+            "description": "Upload a receipt file for an expense. Accepted formats: jpg, jpeg, png, pdf. Max 10MB. Owner only."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"original_name\": \"hotel_receipt.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"size\": 204800\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Receipts",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1/receipts",
+            "description": "List all receipts for an expense."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 1,\n      \"original_name\": \"hotel_receipt.pdf\",\n      \"mime_type\": \"application/pdf\",\n      \"size\": 204800\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Download Receipt",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/receipts/1/download",
+            "description": "Stream-download a receipt file. Response is the file binary."
+          }
+        },
+        {
+          "name": "Delete Receipt",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/receipts/1",
+            "description": "Delete a receipt. Removes the file from storage and the database record. Only allowed if the expense is in Draft status. Owner only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Receipt deleted.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Add Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1/comments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Please attach the original receipt PDF.\"\n}"
+            },
+            "description": "Add a comment to an expense. Max 2000 characters. Auth users who can view the expense can comment."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"body\": \"Please attach the original receipt PDF.\",\n    \"user\": { \"id\": 3, \"name\": \"Admin User\" },\n    \"created_at\": \"2026-04-11T09:10:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Comments",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/expenses/1/comments",
+            "description": "List all comments for an expense, newest first."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 1,\n      \"body\": \"Please attach the original receipt PDF.\",\n      \"user\": { \"id\": 3, \"name\": \"Admin User\" },\n      \"created_at\": \"2026-04-11T09:10:00Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/comments/1",
+            "description": "Delete a comment. The user who created the comment can delete it."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Comment deleted.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Team Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reports/team-summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "team-summary"],
+              "query": [
+                { "key": "date_from", "value": "2026-01-01", "disabled": true },
+                { "key": "date_to", "value": "2026-12-31", "disabled": true }
+              ]
+            },
+            "description": "Aggregate totals for approved expenses. Admin or Manager only. Managers see their team only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"total_amount\": \"12450.00\",\n    \"total_count\": 34,\n    \"average_amount\": \"366.18\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "By Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reports/by-category",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "by-category"],
+              "query": [
+                { "key": "date_from", "value": "2026-01-01", "disabled": true },
+                { "key": "date_to", "value": "2026-12-31", "disabled": true }
+              ]
+            },
+            "description": "Approved expense totals grouped by category, sorted by amount descending. Admin or Manager only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    { \"category_id\": 1, \"category_name\": \"Travel\", \"total_amount\": \"7800.00\", \"total_count\": 18 },\n    { \"category_id\": 2, \"category_name\": \"Meals\", \"total_amount\": \"2300.00\", \"total_count\": 12 }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "By Member",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reports/by-member",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "by-member"],
+              "query": [
+                { "key": "date_from", "value": "2026-01-01", "disabled": true },
+                { "key": "date_to", "value": "2026-12-31", "disabled": true }
+              ]
+            },
+            "description": "Approved expense totals grouped by team member, sorted by amount descending. Admin or Manager only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    { \"user_id\": 2, \"user_name\": \"Jane Doe\", \"total_amount\": \"4500.00\", \"total_count\": 10 },\n    { \"user_id\": 4, \"user_name\": \"John Smith\", \"total_amount\": \"3200.00\", \"total_count\": 8 }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Toggle User Active",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/admin/users/2/toggle-active",
+            "description": "Activate or deactivate a user account. Admin only. Deactivated users cannot log in."
+          },
+          "response": [
+            {
+              "name": "200 OK — Deactivated",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"User deactivated.\",\n  \"user\": { \"id\": 2, \"name\": \"Jane Doe\", \"is_active\": false }\n}"
+            },
+            {
+              "name": "200 OK — Activated",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"User activated.\",\n  \"user\": { \"id\": 2, \"name\": \"Jane Doe\", \"is_active\": true }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Toggle Team Active",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/admin/teams/1/toggle-active",
+            "description": "Activate or deactivate a team. Admin only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Team deactivated.\",\n  \"team\": { \"id\": 1, \"name\": \"Engineering\", \"is_active\": false }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Toggle Category Active",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/api/admin/categories/1/toggle-active",
+            "description": "Activate or deactivate a category. Admin only. Inactive categories cannot be used in new expenses."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Category deactivated.\",\n  \"category\": { \"id\": 1, \"name\": \"Travel\", \"is_active\": false }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
