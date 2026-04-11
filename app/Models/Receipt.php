@@ -16,6 +16,7 @@ class Receipt extends Model
         'original_name',
         'mime_type',
         'size',
+        'disk',
     ];
 
     public function expense(): BelongsTo

@@ -13,7 +13,14 @@ class ReceiptPolicy
 {
     public function upload(User $user, Expense $expense): bool
     {
-        return $expense->user_id === $user->id;
+        if ($expense->user_id !== $user->id) {
+            return false;
+        }
+
+        return in_array($expense->status, [
+            ExpenseStatus::Draft,
+            ExpenseStatus::Rejected,
+        ]);
     }
 
     public function download(User $user, Receipt $receipt): bool

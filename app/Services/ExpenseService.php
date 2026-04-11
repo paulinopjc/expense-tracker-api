@@ -106,7 +106,7 @@ class ExpenseService
 
         $query->orderBy($sortField, $sortDirection);
 
-        $perPage = min((int) ($filters['per_page'] ?? 15), 50);
+        $perPage = min($filters['per_page'] ?? 15, 50);
 
         return $query->cursorPaginate($perPage);
     }

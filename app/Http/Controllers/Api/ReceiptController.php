@@ -52,7 +52,9 @@ class ReceiptController extends Controller
 
         Gate::authorize('download', $receipt);
 
-        return Storage::disk('local')->download(
+        $disk = $receipt->disk ?? 'local';
+
+        return Storage::disk($disk)->download(
             $receipt->file_path,
             $receipt->original_name
         );
