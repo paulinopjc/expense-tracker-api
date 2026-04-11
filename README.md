@@ -273,7 +273,7 @@ The API runs at `http://localhost:8090/api`.
 
 ## Documentation
 
-API documentation is generated from `postman_collection.json` and rendered via [Redoc](https://github.com/Redocly/redoc).
+API documentation is generated from `expense-tracker-api.postman_collection.json` and rendered via [Redoc](https://github.com/Redocly/redoc).
 
 **Generate the OpenAPI spec locally:**
 
@@ -281,7 +281,7 @@ API documentation is generated from `postman_collection.json` and rendered via [
 npm run docs
 ```
 
-This reads `postman_collection.json` and outputs `openapi.yaml` at the project root.
+This reads `expense-tracker-api.postman_collection.json` and outputs `openapi.yaml` at the project root.
 
 **View the docs locally:**
 
