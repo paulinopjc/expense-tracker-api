@@ -267,7 +267,7 @@ make test
 | `make test` | Run the full test suite |
 | `make shell` | Open a bash shell in the app container |
 
-The API runs at `http://localhost:8090/api`.
+The API runs at `http://localhost:8090/api` locally, or at `https://expense-tracker-api-ndhp.onrender.com/api` in production.
 
 ---
 
@@ -286,6 +286,10 @@ This reads `expense-tracker-api.postman_collection.json` and outputs `openapi.ya
 **View the docs locally:**
 
 Open `docs/index.html` in a browser (or use VS Code Live Server). Redoc fetches `../openapi.yaml` and renders the full interactive spec.
+
+**Postman documentation:**
+
+[View on Postman](https://documenter.getpostman.com/view/53937112/2sBXitCnJ4)
 
 **Live docs (GitHub Pages):**
 
