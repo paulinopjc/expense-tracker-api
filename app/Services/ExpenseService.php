@@ -12,7 +12,7 @@ class ExpenseService
 {
     public function create(User $user, array $data): Expense
     {
-        if (! $user->team?->is_active) {
+        if ($user->role !== UserRole::Admin && ! $user->team?->is_active) {
             throw ValidationException::withMessages([
                 'team' => ['Your team has been disabled. Contact an administrator.'],
             ]);
