@@ -37,6 +37,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/reports/by-member', [ReportController::class, 'byMember']);
 
     Route::patch('/admin/users/{user}/toggle-active', [AdminController::class, 'toggleUser']);
+    Route::patch('/admin/users/{user}/assign-team', [AdminController::class, 'assignTeam']);
+    Route::get('/admin/teams', [AdminController::class, 'listTeams']);
+    Route::post('/admin/teams', [AdminController::class, 'createTeam']);
     Route::patch('/admin/teams/{team}/toggle-active', [AdminController::class, 'toggleTeam']);
     Route::patch('/admin/categories/{category}/toggle-active', [AdminController::class, 'toggleCategory']);
 });
