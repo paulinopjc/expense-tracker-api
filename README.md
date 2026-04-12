@@ -229,7 +229,7 @@ Docker and Docker Compose
 
 ```bash
 # Clone the repo
-git clone <repo-url> expense-tracker-api
+git clone https://github.com/paulinopjc/expense-tracker-api expense-tracker-api
 cd expense-tracker-api
 
 # Copy environment config
