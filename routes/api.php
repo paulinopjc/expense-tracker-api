@@ -9,10 +9,10 @@ use App\Http\Controllers\Api\ReceiptController;
 use App\Http\Controllers\Api\ReportController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/auth/google', [AuthController::class, 'google'])->middleware('throttle:10,1');
 
 Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::get('/categories', [CategoryController::class, 'index']);
@@ -36,6 +36,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/reports/by-category', [ReportController::class, 'byCategory']);
     Route::get('/reports/by-member', [ReportController::class, 'byMember']);
 
+    Route::get('/admin/users', [AdminController::class, 'listUsers']);
+    Route::post('/admin/users', [AdminController::class, 'createUser']);
+    Route::patch('/admin/users/{user}', [AdminController::class, 'updateUser']);
     Route::patch('/admin/users/{user}/toggle-active', [AdminController::class, 'toggleUser']);
     Route::patch('/admin/users/{user}/assign-team', [AdminController::class, 'assignTeam']);
     Route::get('/admin/teams', [AdminController::class, 'listTeams']);

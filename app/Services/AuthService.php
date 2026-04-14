@@ -3,34 +3,29 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Enums\UserRole;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
-    public function register(array $data): array
+    public function __construct(
+        private GoogleTokenVerifier $googleVerifier
+    ) {}
+
+    public function loginWithGoogle(string $idToken): array
     {
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => $data['password'],
-            'team_id' => $data['team_id'],
-            'role' => UserRole::Member,
-        ]);
+        $payload = $this->googleVerifier->verify($idToken);
 
-        $token = $user->createToken('auth-token')->plainTextToken;
-
-        return ['user' => $user, 'token' => $token];
-    }
-
-    public function login(array $data): array
-    {
-        $user = User::where('email', $data['email'])->first();
-
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
+        if (! $payload) {
             throw ValidationException::withMessages([
-                'email' => ['Invalid credentials.'],
+                'id_token' => ['Invalid Google ID token.'],
+            ]);
+        }
+
+        $user = User::where('email', $payload['email'])->first();
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'email' => ['This email is not authorized to sign in. Ask an administrator to add you.'],
             ]);
         }
 
@@ -38,6 +33,10 @@ class AuthService
             throw ValidationException::withMessages([
                 'email' => ['This account has been disabled.'],
             ]);
+        }
+
+        if (! $user->google_id && $payload['sub']) {
+            $user->update(['google_id' => $payload['sub']]);
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;

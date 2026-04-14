@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
@@ -16,33 +14,26 @@ class AuthController extends Controller
         private AuthService $authService
     ) {}
 
-    public function register(RegisterRequest $request): JsonResponse
+    public function google(Request $request): JsonResponse
     {
-        $result = $this->authService->register($request->validated());
+        $validated = $request->validate([
+            'id_token' => 'required|string',
+        ]);
+
+        $result = $this->authService->loginWithGoogle($validated['id_token']);
 
         return response()->json([
             'data' => [
                 'user' => new UserResource($result['user']),
                 'token' => $result['token'],
             ],
-        ], 201);
+        ]);
     }
 
-    public function login(LoginRequest $request): JsonResponse
+    public function me(Request $request): JsonResponse
     {
-        try {
-            $result = $this->authService->login($request->validated());
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Invalid credentials.',
-            ], 401);
-        }
-
         return response()->json([
-            'data' => [
-                'user' => new UserResource($result['user']),
-                'token' => $result['token'],
-            ],
+            'data' => new UserResource($request->user()),
         ]);
     }
 
