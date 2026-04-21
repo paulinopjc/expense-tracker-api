@@ -12,17 +12,24 @@ class ReportService
     {
         $query = $this->baseQuery($user, $filters);
 
-        $result = $query->selectRaw('
-            COALESCE(SUM(amount), 0) as total_amount,
-            COUNT(*) as total_count,
-            COALESCE(AVG(amount), 0) as average_amount
-        ')->first();
-
-        return [
-            'total_amount' => number_format($result->total_amount, 2, '.', ''),
-            'total_count' => (int) $result->total_count,
-            'average_amount' => number_format($result->average_amount, 2, '.', ''),
-        ];
+        return $query
+            ->join('teams', 'expenses.team_id', '=', 'teams.id')
+            ->selectRaw('
+                teams.id as team_id,
+                teams.name as name,
+                COUNT(*) as count,
+                COALESCE(SUM(expenses.amount), 0) as total
+            ')
+            ->groupBy('teams.id', 'teams.name')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'team_id' => (int) $row->team_id,
+                'name' => $row->name,
+                'count' => (int) $row->count,
+                'total' => (float) $row->total,
+            ])
+            ->toArray();
     }
 
     public function byCategory(User $user, array $filters = []): array
@@ -33,18 +40,18 @@ class ReportService
             ->join('categories', 'expenses.category_id', '=', 'categories.id')
             ->selectRaw('
                 categories.id as category_id,
-                categories.name as category_name,
-                SUM(expenses.amount) as total_amount,
-                COUNT(*) as total_count
+                categories.name as name,
+                COUNT(*) as count,
+                COALESCE(SUM(expenses.amount), 0) as total
             ')
             ->groupBy('categories.id', 'categories.name')
-            ->orderByDesc('total_amount')
+            ->orderByDesc('total')
             ->get()
             ->map(fn ($row) => [
-                'category_id' => $row->category_id,
-                'category_name' => $row->category_name,
-                'total_amount' => number_format($row->total_amount, 2, '.', ''),
-                'total_count' => (int) $row->total_count,
+                'category_id' => (int) $row->category_id,
+                'name' => $row->name,
+                'count' => (int) $row->count,
+                'total' => (float) $row->total,
             ])
             ->toArray();
     }
@@ -57,18 +64,18 @@ class ReportService
             ->join('users', 'expenses.user_id', '=', 'users.id')
             ->selectRaw('
                 users.id as user_id,
-                users.name as user_name,
-                SUM(expenses.amount) as total_amount,
-                COUNT(*) as total_count
+                users.name as name,
+                COUNT(*) as count,
+                COALESCE(SUM(expenses.amount), 0) as total
             ')
             ->groupBy('users.id', 'users.name')
-            ->orderByDesc('total_amount')
+            ->orderByDesc('total')
             ->get()
             ->map(fn ($row) => [
-                'user_id' => $row->user_id,
-                'user_name' => $row->user_name,
-                'total_amount' => number_format($row->total_amount, 2, '.', ''),
-                'total_count' => (int) $row->total_count,
+                'user_id' => (int) $row->user_id,
+                'name' => $row->name,
+                'count' => (int) $row->count,
+                'total' => (float) $row->total,
             ])
             ->toArray();
     }
@@ -81,7 +88,7 @@ class ReportService
         if ($user->role === UserRole::Manager) {
             $query->forTeam($user->team_id);
         }
-        // Admin sees all teams — no filter
+        // Admin sees all teams
 
         // Date range
         $query->dateRange(
